@@ -1,16 +1,12 @@
-# MAQON Dashboard V1
-Dashboard web responsivo para a plataforma MAQON de consultoria e gestão de equipamentos pesados.
+# MAQON Dashboard V1 — Identidade Visual Oficial
 
-## Módulos do V1
-- Dashboard executivo
-- Leads e funil comercial
-- Clientes
-- Equipamentos
-- Engine de análises
-- Pipeline comercial
+Dashboard web responsivo baseado na identidade visual MAQON aprovada.
 
-## Executar
-Abra `index.html` no navegador. O V1 não exige instalação nem build.
+## Arquivos
+- `index.html` — interface e módulos
+- `estilo.css` — identidade visual escura MAQON
+- `app.js` — navegação, dados demonstrativos e interações
+- `maqon-identidade-referencia.png` — referência visual aprovada
 
-## Próxima integração
-Substituir os dados demonstrativos de `app.js` por uma API/backend seguro conectado ao CRM/HubSpot e à base operacional. Credenciais e tokens nunca devem ficar no JavaScript público.
+## Integração seguinte
+Substituir os dados demonstrativos por API/backend seguro conectado ao HubSpot/Google Sheets. Tokens e credenciais não devem ficar no JavaScript público.
