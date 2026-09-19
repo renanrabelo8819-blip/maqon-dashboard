@@ -5,3 +5,19 @@
 .sidebrand strong{display:block;margin-top:2px;font-size:13px;line-height:1.15}
 .sidebrand small{margin-top:5px;font-size:7px;line-height:1.1}
 @media (max-height:760px) and (min-width:1201px){.sidebrand{display:none}}
+
+
+/* MAQON V4.1.2 FINAL — remoção definitiva do bloco inferior da sidebar */
+.sidebrand,
+.sidebar .sidebrand,
+aside .sidebrand {
+  display:none !important;
+  visibility:hidden !important;
+  height:0 !important;
+  min-height:0 !important;
+  max-height:0 !important;
+  margin:0 !important;
+  padding:0 !important;
+  overflow:hidden !important;
+  pointer-events:none !important;
+}
