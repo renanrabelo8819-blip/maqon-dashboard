@@ -138,6 +138,9 @@ function viewProposal(i){
  else if(key.includes('escav')){visual='escavadeira';desc='Alta produtividade e confiabilidade para escavação e terraplenagem.'}
  const photo=`maqon-${visual}.jpg`;
  const w=window.open('','_blank'); if(!w)return alert('Autorize pop-ups para visualizar a proposta.');
+ if((maker+' '+model).toLowerCase().includes('sany stc250t5')){
+   specs=[['CAPACIDADE DE CARGA','250 t'],['POTÊNCIA','320 hp'],['ALTURA DA LANÇA','47 m']];
+ }
  const payload={num,client:p.client,company:p.company||'—',mode:p.mode,validity,issue,category,maker,model,desc,specs,value:brl(p.value),terms:p.terms||'Conforme negociação',scope:p.scope||'',photo};
  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(num)} - MAQON</title>
  <style>*{box-sizing:border-box}html,body{margin:0;background:#061015;font-family:Arial,sans-serif}.toolbar{height:58px;background:#0b1820;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 22px;position:sticky;top:0;z-index:5}.toolbar button{border:0;border-radius:5px;padding:10px 16px;font-weight:800;cursor:pointer;margin-left:8px}.gold{background:#f4c400}.dark{background:#263740;color:#fff}.stage{padding:12px;display:flex;justify-content:center}canvas{width:min(1024px,100%);height:auto;display:block;box-shadow:0 10px 40px #000}@media print{.toolbar{display:none}.stage{padding:0}canvas{width:100%;box-shadow:none}@page{size:A4 portrait;margin:0}}</style></head>
@@ -154,7 +157,7 @@ function viewProposal(i){
  Promise.all([load(base),load(machine)]).then(()=>{
   x.drawImage(base,0,0,1024,1536);
   /* cabeçalho: preserva logo e painel PROPOSTA COMERCIAL; troca somente a área do equipamento */
-  fit(machine,427,0,390,318); txt((P.maker+' '+P.model).trim(),440,18,27,'900','#ffd21a',355); txt(P.category,440,52,20,'700','#fff',355);
+  fit(machine,427,0,390,318);
   /* cliente/proposta: limpa somente o miolo textual dos cartões */
   box(100,383,380,42); txt(P.client,103,397,18);
   box(590,383,370,42); txt(P.company,593,397,18);
