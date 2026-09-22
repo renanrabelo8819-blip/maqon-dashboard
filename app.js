@@ -28,27 +28,8 @@ document.addEventListener('click',e=>{const edit=e.target.closest('[data-edit]')
 document.querySelector('#search').oninput=e=>{const q=e.target.value.toLowerCase();renderAll(leads.filter(x=>x.join(' ').toLowerCase().includes(q)))};
 
 const EQUIPMENT_KEY='maqon_equipamentos_v1';
-const seedEquipment=[
-['Escavadeira Hidráulica','Komatsu','PC210','2024','0','900000','0','0','95','Disponível'],
-['Retroescavadeira','John Deere','310L','2024','0','480000','0','0','95','Disponível'],
-['Motoniveladora','CASE','845B','2024','0','1250000','0','0','95','Disponível'],
-['Pá Carregadeira','Caterpillar','966L','2024','0','1450000','0','0','95','Disponível'],
-['Trator de Esteiras','Komatsu','D61EX','2024','0','1600000','0','0','95','Disponível'],
-['Guindaste Rodoviário','SANY','STC250T5','2024','0','3800000','0','0','96','Disponível'],
-['Munck','IVECO','Tector + Munck','2024','0','520000','0','0','95','Disponível'],
-['Caminhão Basculante','Mercedes-Benz','Atego 2730','2024','0','720000','0','0','95','Disponível'],
-['Caminhão Pipa','Volkswagen','24.280','2024','0','650000','0','0','95','Disponível'],
-['Outros Equipamentos','Genérico','Empilhadeira','2024','0','280000','0','0','95','Disponível']
-];
+const seedEquipment=[['Escavadeira','Caterpillar','320','2024','1250','850000','18.5','42','94','Ativo'],['Pá Carregadeira','Volvo','L90H','2023','2100','780000','15.8','38','92','Ativo'],['Guindaste','SANY','STC250T5','2024','980','1250000','22','55','96','Disponível']];
 let equipments=loadEquipment(),editingEquipment=null;
-(function syncMaqonCatalog(){
- const canon=seedEquipment.map(x=>[...x]);
- canon.forEach(c=>{
-   const ix=equipments.findIndex(e=>String(e[0]).toLowerCase()===String(c[0]).toLowerCase()&&String(e[1]).toLowerCase()===String(c[1]).toLowerCase()&&String(e[2]).toLowerCase()===String(c[2]).toLowerCase());
-   if(ix>=0) equipments[ix]=c; else equipments.push(c);
- });
- persistEquipment();
-})();
 function loadEquipment(){try{const x=JSON.parse(localStorage.getItem(EQUIPMENT_KEY));return Array.isArray(x)?x:seedEquipment.map(x=>[...x])}catch(e){return seedEquipment.map(x=>[...x])}}
 function persistEquipment(){localStorage.setItem(EQUIPMENT_KEY,JSON.stringify(equipments))}
 function brl(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):''}
@@ -136,77 +117,57 @@ function renderProposals(a=proposals){const body=document.querySelector('#propos
 function proposalOptions(){const c=document.querySelector('#proposalClient'),e=document.querySelector('#proposalEquipment');if(!c||!e)return;c.innerHTML='<option value="">Selecione o cliente / lead</option>'+leads.map((x,i)=>`<option value="${i}">${esc(x[1])}${x[2]?' — '+esc(x[2]):''}</option>`).join('');e.innerHTML='<option value="">Selecione o equipamento</option>'+equipments.map((x,i)=>`<option value="${i}">${esc(equipmentName(x))}</option>`).join('')}
 const pd=document.querySelector('#proposalDialog'),pf=document.querySelector('#proposalForm');
 const proposalEquipmentSelect=document.querySelector('#proposalEquipment');
-if(proposalEquipmentSelect) proposalEquipmentSelect.addEventListener('change',()=>{
+if(proposalEquipmentSelect)proposalEquipmentSelect.addEventListener('change',()=>{
  const eq=equipments[Number(proposalEquipmentSelect.value)];
  if(eq){const v=document.querySelector('#proposalValue');if(v)v.value=eq[5]||'';}
 });
 function openProposal(i=null){editingProposal=i;proposalOptions();document.querySelector('#proposalDialogTitle').textContent=i===null?'Nova Proposta':'Editar Proposta';if(i===null){pf.reset();const d=new Date();d.setDate(d.getDate()+15);document.querySelector('#proposalValidity').value=d.toISOString().slice(0,10);document.querySelector('#proposalStatus').value='Rascunho'}else{const p=proposals[i],li=leads.findIndex(x=>x[1]===p.client&&x[2]===p.company),ei=equipments.findIndex(x=>equipmentName(x)===p.equipment);document.querySelector('#proposalClient').value=li>=0?li:'';document.querySelector('#proposalEquipment').value=ei>=0?ei:'';document.querySelector('#proposalMode').value=p.mode;document.querySelector('#proposalScope').value=p.scope||'';document.querySelector('#proposalValue').value=p.value;document.querySelector('#proposalValidity').value=p.validity||'';document.querySelector('#proposalTerms').value=p.terms||'';document.querySelector('#proposalStatus').value=p.status}pd.showModal()}
+function maqonCatalog(eq){
+ const category=(eq?.[0]||'Equipamento').trim(), maker=(eq?.[1]||'').trim(), model=(eq?.[2]||'').trim();
+ const id=(maker+' '+model).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const cat=category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const known=[
+  {test:/volvo.*l90h/,photo:'maqon-pa-carregadeira.jpg',desc:'Pá carregadeira para carregamento e movimentação de materiais com alta produtividade.',spec:[['POTÊNCIA','308 hp'],['PESO OPERACIONAL','24.000 kg'],['CAÇAMBA','4,2 m³']]},
+  {test:/caterpillar.*966l/,photo:'maqon-pa-carregadeira.jpg',desc:'Pá carregadeira para carregamento e movimentação de materiais em operações de alta produtividade.',spec:[['POTÊNCIA','308 hp'],['PESO OPERACIONAL','24.000 kg'],['CAÇAMBA','4,2 m³']]},
+  {test:/sany.*stc250t5/,photo:'maqon-guindaste.jpg',desc:'Guindaste rodoviário para içamento, movimentação e posicionamento seguro de cargas.',spec:[['CAPACIDADE','250 t'],['POTÊNCIA','320 hp'],['ALTURA DA LANÇA','47 m']]},
+  {test:/komatsu.*pc210/,photo:'maqon-escavadeira.jpg',desc:'Escavadeira hidráulica para escavação, carregamento e terraplenagem.',spec:[['POTÊNCIA','165 hp'],['PESO OPERACIONAL','≈ 22.000 kg'],['CAÇAMBA','≈ 1,0 m³']]},
+  {test:/case.*845b/,photo:'maqon-motoniveladora.jpg',desc:'Motoniveladora para nivelamento, acabamento e conformação de vias e terrenos.',spec:[['POTÊNCIA','Conforme cadastro'],['PESO OPERACIONAL','Conforme cadastro'],['LÂMINA','Conforme cadastro']]},
+  {test:/komatsu.*d61/,photo:'maqon-trator-esteiras.jpg',desc:'Trator de esteiras para terraplenagem, corte, empurramento e preparação de terrenos.',spec:[['POTÊNCIA','168 hp'],['PESO OPERACIONAL','18.700 kg'],['LÂMINA','3,81 m']]}
+ ];
+ const k=known.find(x=>x.test.test(id)); if(k)return {category,maker,model,...k};
+ let visual='outro',desc='Equipamento selecionado conforme especificações cadastradas na plataforma MAQON.';
+ if(cat.includes('retro')){visual='retroescavadeira';desc='Equipamento versátil para escavação, carregamento e apoio em obras.'}
+ else if(cat.includes('motonivel')){visual='motoniveladora';desc='Equipamento para nivelamento, acabamento e conformação de vias e terrenos.'}
+ else if(cat.includes('carregadeira')){visual='pa-carregadeira';desc='Equipamento para carregamento e movimentação de materiais.'}
+ else if(cat.includes('trator')){visual='trator-esteiras';desc='Equipamento para terraplenagem, corte e preparação de terrenos.'}
+ else if(cat.includes('guindaste')){visual='guindaste';desc='Equipamento para içamento e movimentação segura de cargas.'}
+ else if(cat.includes('munck')){visual='munck';desc='Solução integrada para transporte, içamento e movimentação de cargas.'}
+ else if(cat.includes('basculante')){visual='caminhao-basculante';desc='Caminhão para transporte e descarga de materiais.'}
+ else if(cat.includes('pipa')){visual='caminhao-pipa';desc='Caminhão para abastecimento, umectação de vias e apoio operacional.'}
+ else if(cat.includes('escav')){visual='escavadeira';desc='Equipamento para escavação e terraplenagem.'}
+ return {category,maker,model,photo:`maqon-${visual}.jpg`,desc,spec:[['ANO',eq?.[3]||'—'],['HORÍMETRO',(eq?.[4]||'—')+' h'],['DISPONIBILIDADE',(eq?.[8]||'—')+'%']]};
+}
 function viewProposal(i){
  const p=proposals[i];if(!p)return;
- const num=proposalNumber(i),eq=equipments.find(x=>equipmentName(x)===p.equipment)||null;
- const category=(eq?.[0]||'Equipamento').trim(),maker=(eq?.[1]||'').trim(),model=(eq?.[2]||'').trim();
- const validity=p.validity?new Date(p.validity+'T12:00:00').toLocaleDateString('pt-BR'):'—';
- const issue=new Date().toLocaleDateString('pt-BR');
- const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- const key=norm(category+' '+maker+' '+model);
- let visual='outro',desc='Equipamento selecionado conforme especificações cadastradas na plataforma MAQON.';
- let specs=[['ANO',eq?.[3]||'—'],['HORÍMETRO',(eq?.[4]||'—')+' h'],['DISPONIBILIDADE',(eq?.[8]||'—')+'%']];
- let scopeLead=`Aquisição do ${maker} ${model} conforme especificação.`;
- if(key.includes('pc210')||key.includes('escavadeira hidraulica')){
-   visual='escavadeira';desc='Escavadeira hidráulica para escavação, carregamento e terraplenagem com alta produtividade.';
-   specs=[['POTÊNCIA','165 hp'],['PESO OPERACIONAL','22.000 kg'],['CAÇAMBA','1,0 m³']];
- }else if(key.includes('310l')||key.includes('retroescavadeira')){
-   visual='retroescavadeira';desc='Retroescavadeira versátil para escavação, carregamento e apoio em obras.';
-   specs=[['POTÊNCIA','100 hp'],['PESO OPERACIONAL','8.200 kg'],['CAÇAMBA','1,0 m³']];
- }else if(key.includes('845b')||key.includes('motoniveladora')){
-   visual='motoniveladora';desc='Motoniveladora para nivelamento, acabamento e conformação de vias e terrenos.';
-   specs=[['POTÊNCIA','205 hp'],['PESO OPERACIONAL','17.500 kg'],['LÂMINA','4,27 m']];
- }else if(key.includes('966l')||key.includes('pa carregadeira')){
-   visual='pa-carregadeira';desc='Pá carregadeira para carregamento e movimentação de materiais com alta produtividade.';
-   specs=[['POTÊNCIA','308 hp'],['PESO OPERACIONAL','24.000 kg'],['CAÇAMBA','4,2 m³']];
- }else if(key.includes('d61ex')||key.includes('trator de esteiras')){
-   visual='trator-esteiras';desc='Trator de esteiras para terraplenagem, corte, empurramento e preparação de terrenos.';
-   specs=[['POTÊNCIA','168 hp'],['PESO OPERACIONAL','18.700 kg'],['LÂMINA','3,81 m']];
- }else if(key.includes('stc250t5')||key.includes('guindaste')){
-   visual='guindaste';desc='Guindaste rodoviário para içamento, movimentação e posicionamento seguro de cargas.';
-   specs=[['CAPACIDADE DE CARGA','250 t'],['POTÊNCIA','320 hp'],['ALTURA DA LANÇA','47 m']];
- }else if(key.includes('munck')){
-   visual='munck';desc='Conjunto para transporte, içamento e movimentação de cargas.';
-   specs=[['CAPACIDADE','12 t'],['ALCANCE','13,5 m'],['GIRO','400°']];
- }else if(key.includes('basculante')){
-   visual='caminhao-basculante';desc='Caminhão basculante para transporte e descarga eficiente de materiais.';
-   specs=[['POTÊNCIA','286 cv'],['CAPACIDADE','16 m³'],['TRAÇÃO','6x4']];
- }else if(key.includes('pipa')){
-   visual='caminhao-pipa';desc='Caminhão pipa para abastecimento, umectação de vias e apoio operacional.';
-   specs=[['POTÊNCIA','280 cv'],['CAPACIDADE','15.000 L'],['TRAÇÃO','6x2']];
- }
- const photo=`maqon-${visual}.jpg`;
- const scope=[
-   p.scope||scopeLead,
-   'Suporte na análise técnica e comparativa com outras opções de mercado.',
-   'Orientação sobre manutenção preventiva e custo operacional.',
-   'Acompanhamento no processo de aquisição e entrega do equipamento.',
-   'Treinamento operacional básico (conforme fabricante).'
- ];
+ const num=proposalNumber(i),eq=equipments.find(x=>equipmentName(x)===p.equipment)||null,c=maqonCatalog(eq);
+ const validity=p.validity?new Date(p.validity+'T12:00:00').toLocaleDateString('pt-BR'):'—',issue=new Date().toLocaleDateString('pt-BR');
  const w=window.open('','_blank');if(!w)return alert('Autorize pop-ups para visualizar a proposta.');
+ const scope=p.scope||`Aquisição de ${c.maker} ${c.model} conforme especificação.`;
  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(num)} - MAQON</title><style>
- *{box-sizing:border-box}html,body{margin:0;background:#061015;font-family:Arial,Helvetica,sans-serif}.toolbar{height:56px;background:#071218;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20;border-bottom:1px solid #c9a600}.toolbar button{border:0;border-radius:5px;padding:10px 15px;font-weight:800;cursor:pointer;margin-left:8px}.gold{background:#f4c400}.dark{background:#263740;color:#fff}.stage{padding:14px;display:flex;justify-content:center}.sheet{position:relative;width:min(1024px,100%);aspect-ratio:2/3;background:#061015 url('maqon-proposta-master.png') center top/100% 100% no-repeat;box-shadow:0 12px 45px #000;overflow:hidden}.mask{position:absolute;background:#07161c;z-index:5}.heroClean{left:42.8%;top:0;width:39.1%;height:21.55%;background:transparent}.txt{position:absolute;z-index:7;color:#fff;font-weight:700;line-height:1.15}.photo{position:absolute;z-index:6;background:url('${photo}') center/cover no-repeat}.heroPhoto{left:42.8%;top:0;width:39.1%;height:21.55%}.heroLabel{left:43.5%;top:1.2%;width:37%;padding:5px 8px;background:rgba(4,12,16,.72);font-size:2.15vw;color:#ffd400}.heroLabel small{display:block;color:#fff;font-size:1.45vw;margin-top:2px}.clientMask{left:7.5%;top:24.05%;width:43%;height:4.4%}.companyMask{left:52%;top:24.05%;width:44%;height:4.4%}.metaMask{left:7.5%;top:29.0%;width:88.5%;height:4.5%}.client{left:10%;top:25.35%;font-size:1.65vw}.company{left:59.8%;top:25.35%;font-size:1.65vw}.mode{left:10%;top:30.45%;font-size:1.6vw}.validity{left:43.2%;top:30.45%;font-size:1.6vw}.issue{left:72.8%;top:30.45%;font-size:1.6vw}.equipPhoto{left:3.25%;top:36.9%;width:45.2%;height:17.0%;border-radius:11px}.infoMask{left:50.0%;top:36.8%;width:46.3%;height:17.4%}.eqtitle{left:52.1%;top:38.4%;width:41.5%;font-size:1.85vw;color:#fff}.desc{left:52.1%;top:42.0%;width:41%;font-size:1.13vw;font-weight:400;line-height:1.35}.specs{position:absolute;z-index:7;left:52.1%;top:47.1%;width:41.2%;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;color:#fff}.spec{border-right:1px solid #5a7078;padding-right:6px}.spec:last-child{border:0}.spec small{display:block;font-size:.85vw;color:#c3d0d5;min-height:2.1em}.spec b{display:block;margin-top:6px;font-size:1.45vw}.priceMask{left:9.2%;top:56.9%;width:38.8%;height:10.6%}.value{left:13.4%;top:60.0%;font-size:3.0vw;color:#ffd400;font-weight:900}.priceNote{left:13.4%;top:64.3%;font-size:1.1vw;font-weight:400}.termsMask{left:50.4%;top:56.9%;width:45.2%;height:10.7%}.term{left:59.5%;font-size:1.25vw}.term1{top:59.25%}.term2{top:62.25%}.term3{top:65.2%}.scopeMask{left:7.6%;top:70.6%;width:88.2%;height:11.6%}.scope{left:10.0%;top:72.25%;width:78%;font-size:1.03vw;font-weight:400;line-height:1.55}.scope div:before{content:'✓';color:#ffd400;font-weight:900;margin-right:8px}.numMask{right:3.2%;top:4.7%;width:16%;height:2.4%}.proposalnum{right:4.3%;top:5.35%;font-size:1.2vw}
- @media(min-width:1024px){.heroLabel{font-size:22px}.heroLabel small{font-size:15px}.client,.company{font-size:17px}.mode,.validity,.issue{font-size:16px}.eqtitle{font-size:19px}.desc{font-size:12px}.spec small{font-size:9px}.spec b{font-size:15px}.value{font-size:31px}.priceNote{font-size:11px}.term{font-size:13px}.scope{font-size:10.5px}.proposalnum{font-size:12px}}
- @media print{.toolbar{display:none}.stage{padding:0}.sheet{width:100vw;box-shadow:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{size:A4 portrait;margin:0}}
+ *{box-sizing:border-box}html,body{margin:0;background:#061015;color:#fff;font-family:Arial,Helvetica,sans-serif}.toolbar{height:54px;background:#0b1820;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20}.toolbar button{border:0;border-radius:5px;padding:10px 14px;font-weight:800;cursor:pointer;margin-left:8px}.gold{background:#f4c400}.dark{background:#263740;color:#fff}.stage{padding:16px;display:flex;justify-content:center}.sheet{width:794px;max-width:100%;background:#061015;border:1px solid #263942;box-shadow:0 12px 45px #000;overflow:hidden}.hero{height:255px;display:grid;grid-template-columns:1fr 205px;background:linear-gradient(90deg,rgba(0,0,0,.08),rgba(0,0,0,.18)),url('maqon-banner-v4.png') center/cover no-repeat;border-bottom:3px solid #e7ba00}.identity{padding:28px 28px;align-self:end}.brand{font-size:50px;font-weight:900;letter-spacing:2px;text-shadow:0 3px 8px #000}.brand b{color:#f5c400}.tag{font-size:13px;font-weight:800}.strategy{font-size:9px;letter-spacing:1.3px;margin-top:8px}.future{font-size:13px;color:#f5c400;margin-top:32px}.future b{display:block;font-size:18px}.proposal{padding:25px 18px;background:rgba(2,8,11,.93);border-left:3px solid #e7ba00}.proposal h1{font-size:20px;margin:0}.proposal h1 b{display:block;color:#f5c400;font-size:27px}.proposal .num{font-size:14px;font-weight:800;margin:8px 0 22px}.benefit{font-size:11px;line-height:1.55;margin:9px 0}.content{padding:8px 24px 16px}.section{display:flex;align-items:center;gap:12px;color:#f5c400;font-size:15px;font-weight:900;margin:10px 0}.section:after{content:"";height:2px;background:#d8ad00;flex:1}.grid2,.grid3{display:grid;gap:9px}.grid2{grid-template-columns:1fr 1fr}.grid3{grid-template-columns:repeat(3,1fr)}.card,.eqinfo,.scope{background:#09171d;border:1px solid #35505a;border-radius:7px}.card{padding:10px 12px;min-height:58px}.card small,.eqinfo small,.spec small{display:block;color:#a9bbc2;font-size:9px;text-transform:uppercase;margin-bottom:5px}.card strong{font-size:13px}.equipment{display:grid;grid-template-columns:48% 52%;gap:11px}.machine{height:205px;border:1px solid #b28c00;border-radius:7px;background:url('${c.photo}') center/cover no-repeat}.eqinfo{padding:14px}.eqinfo h2{font-size:17px;margin:4px 0 10px;color:#fff}.eqinfo p{font-size:11px;line-height:1.5;min-height:50px}.specs{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;border-top:1px solid #31434b;padding-top:14px;margin-top:12px}.spec{padding-right:6px;border-right:1px solid #3b515a}.spec:last-child{border:0}.spec b{font-size:14px}.investment{display:grid;grid-template-columns:49% 51%;gap:11px}.price{border:1px solid #e7ba00;border-left:10px solid #f5c400;border-radius:8px;padding:15px;background:linear-gradient(120deg,#4a3909,#0b1214 72%)}.price small{font-size:12px}.price strong{display:block;color:#f5c400;font-size:28px;margin:8px 0}.price span{font-size:11px}.conditions .card{margin-bottom:6px;min-height:48px}.scope{padding:11px 13px;font-size:10px;line-height:1.75}.bottom{display:grid;grid-template-columns:1.2fr .8fr;gap:25px;align-items:center}.obs{font-size:10px;line-height:1.5}.quote{color:#f5c400;font-size:18px;font-weight:900}.footer{border-top:4px solid #e7ba00;background:#050d11;padding:14px 24px}.contacts{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;font-size:9px}.closing{text-align:right;margin-top:10px;color:#f5c400;font-size:20px;font-weight:900}
+ @media(max-width:760px){.hero{grid-template-columns:1fr 180px}.brand{font-size:38px}.grid2,.grid3,.equipment,.investment,.bottom{grid-template-columns:1fr}.machine{height:230px}}@media print{.toolbar{display:none}.stage{padding:0}.sheet{width:100%;box-shadow:none;border:0}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{size:A4;margin:0}}
  </style></head><body><header class="toolbar"><b>Proposta Comercial — ${esc(num)}</b><div><button class="dark" onclick="window.close()">Fechar</button><button class="gold" onclick="window.print()">Imprimir / Salvar PDF</button></div></header><main class="stage"><article class="sheet">
- <div class="mask heroClean"></div>
- <div class="mask clientMask"></div><div class="mask companyMask"></div><div class="mask metaMask"></div>
- <div class="txt client">${esc(p.client)}</div><div class="txt company">${esc(p.company||'—')}</div><div class="txt mode">${esc(p.mode)}</div><div class="txt validity">${esc(validity)}</div><div class="txt issue">${esc(issue)}</div>
- <div class="photo equipPhoto"></div><div class="mask infoMask"></div>
- <div class="txt eqtitle">${esc(maker)} ${esc(model)} — ${esc(category)}</div><div class="txt desc">${esc(desc)}</div>
- <div class="specs">${specs.map(s=>`<div class="spec"><small>${esc(s[0])}</small><b>${esc(s[1])}</b></div>`).join('')}</div>
- <div class="mask priceMask"></div><div class="txt value">${brl(p.value||eq?.[5])}</div><div class="txt priceNote">Investimento conforme proposta comercial<br><span style="opacity:.85">(Valores sujeitos a alteração)</span></div>
- <div class="mask termsMask"></div><div class="txt term term1">${esc(p.terms||'A combinar / financiamento')}</div><div class="txt term term2">A combinar</div><div class="txt term term3">Conforme fabricante</div>
- <div class="mask scopeMask"></div><div class="txt scope">${scope.map(x=>`<div>${esc(x)}</div>`).join('')}</div>
- <div class="mask numMask"></div><div class="txt proposalnum">Nº: ${esc(num)}</div>
+ <header class="hero"><div class="identity"><div class="brand"><b>M</b>AQON</div><div class="tag">CONSULTORIA EM EQUIPAMENTOS PESADOS</div><div class="strategy">PLANEJAMENTO • DADOS • ESTRATÉGIA • RESULTADOS</div><div class="future">EQUIPAMENTOS QUE<b>CONSTROEM O SEU FUTURO</b></div></div><aside class="proposal"><h1>PROPOSTA <b>COMERCIAL</b></h1><div class="num">Nº: ${esc(num)}</div><div class="benefit">◈ SOLUÇÕES REAIS</div><div class="benefit">▰ MAIS PRODUTIVIDADE</div><div class="benefit">⚙ MENOR CUSTO OPERACIONAL</div><div class="benefit">◆ PARCERIA DE LONGO PRAZO</div></aside></header>
+ <div class="content"><div class="section">● CLIENTE E PROPOSTA</div><div class="grid2"><div class="card"><small>Cliente</small><strong>${esc(p.client)}</strong></div><div class="card"><small>Empresa</small><strong>${esc(p.company||'—')}</strong></div></div><div class="grid3" style="margin-top:9px"><div class="card"><small>Modalidade</small><strong>${esc(p.mode)}</strong></div><div class="card"><small>Validade da proposta</small><strong>${esc(validity)}</strong></div><div class="card"><small>Data de emissão</small><strong>${esc(issue)}</strong></div></div>
+ <div class="section">● EQUIPAMENTO</div><div class="equipment"><div class="machine"></div><div class="eqinfo"><small>Equipamento selecionado</small><h2>${esc(c.maker)} ${esc(c.model)} — ${esc(c.category)}</h2><p>${esc(c.desc)}</p><div class="specs">${c.spec.map(s=>`<div class="spec"><small>${esc(s[0])}</small><b>${esc(s[1])}</b></div>`).join('')}</div></div></div>
+ <div class="section">● INVESTIMENTO</div><div class="investment"><div class="price"><small>VALOR TOTAL</small><strong>${brl(p.value)}</strong><span>Investimento conforme proposta comercial<br>(Valores sujeitos à alteração)</span></div><div class="conditions"><div class="card"><small>Condições de pagamento</small><strong>${esc(p.terms||'A combinar / financiamento')}</strong></div><div class="card"><small>Prazo de entrega</small><strong>A combinar</strong></div><div class="card"><small>Garantia</small><strong>Conforme fabricante</strong></div></div></div>
+ <div class="section">▤ ESCOPO DA PROPOSTA</div><div class="scope">✓ ${esc(scope)}<br>✓ Suporte na análise técnica e comparativa com outras opções de mercado.<br>✓ Orientação sobre manutenção preventiva e custo operacional.<br>✓ Acompanhamento no processo de aquisição e entrega do equipamento.<br>✓ Treinamento operacional básico (conforme fabricante).</div>
+ <div class="bottom"><div><div class="section">● OBSERVAÇÕES</div><div class="obs">Esta proposta é válida pelo período informado e pode ser ajustada conforme negociação. Valores sujeitos à alteração sem aviso prévio.</div></div><div class="quote">“Máquinas certas,<br>resultados maiores.”</div></div></div>
+ <footer class="footer"><div class="contacts"><span>☎ (98) 99999-9999</span><span>✉ contato@maqon.com.br</span><span>in /maqon</span></div><div class="closing">MAQON</div></footer>
  </article></main></body></html>`;
  w.document.open();w.document.write(html);w.document.close();
 }
+
 document.querySelector('#newProposal').onclick=()=>openProposal();document.querySelector('#cancelProposal').onclick=()=>pd.close();
 pf.addEventListener('submit',e=>{e.preventDefault();const li=Number(document.querySelector('#proposalClient').value),ei=Number(document.querySelector('#proposalEquipment').value);if(!leads[li]||!equipments[ei])return;const l=leads[li],row={client:l[1],company:l[2],equipment:equipmentName(equipments[ei]),mode:document.querySelector('#proposalMode').value,scope:document.querySelector('#proposalScope').value.trim(),value:document.querySelector('#proposalValue').value,validity:document.querySelector('#proposalValidity').value,terms:document.querySelector('#proposalTerms').value.trim(),status:document.querySelector('#proposalStatus').value};if(editingProposal===null)proposals.unshift(row);else proposals[editingProposal]=row;persistProposals();renderProposals();pd.close()});
 document.addEventListener('click',e=>{const ed=e.target.closest('[data-pr-edit]'),del=e.target.closest('[data-pr-delete]'),v=e.target.closest('[data-pr-view]');if(ed)openProposal(Number(ed.dataset.prEdit));if(v)viewProposal(Number(v.dataset.prView));if(del){const i=Number(del.dataset.prDelete);if(confirm(`Excluir a proposta ${proposalNumber(i)} de ${proposals[i].client}?`)){proposals.splice(i,1);persistProposals();renderProposals()}}});
