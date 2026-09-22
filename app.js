@@ -28,8 +28,27 @@ document.addEventListener('click',e=>{const edit=e.target.closest('[data-edit]')
 document.querySelector('#search').oninput=e=>{const q=e.target.value.toLowerCase();renderAll(leads.filter(x=>x.join(' ').toLowerCase().includes(q)))};
 
 const EQUIPMENT_KEY='maqon_equipamentos_v1';
-const seedEquipment=[['Escavadeira','Caterpillar','320','2024','1250','850000','18.5','42','94','Ativo'],['Pá Carregadeira','Volvo','L90H','2023','2100','780000','15.8','38','92','Ativo'],['Guindaste','SANY','STC250T5','2024','980','1250000','22','55','96','Disponível']];
+const seedEquipment=[
+['Escavadeira Hidráulica','Komatsu','PC210','2024','0','900000','0','0','95','Disponível'],
+['Retroescavadeira','John Deere','310L','2024','0','480000','0','0','95','Disponível'],
+['Motoniveladora','CASE','845B','2024','0','1250000','0','0','95','Disponível'],
+['Pá Carregadeira','Caterpillar','966L','2024','0','1450000','0','0','95','Disponível'],
+['Trator de Esteiras','Komatsu','D61EX','2024','0','1600000','0','0','95','Disponível'],
+['Guindaste Rodoviário','SANY','STC250T5','2024','0','3800000','0','0','96','Disponível'],
+['Munck','IVECO','Tector + Munck','2024','0','520000','0','0','95','Disponível'],
+['Caminhão Basculante','Mercedes-Benz','Atego 2730','2024','0','720000','0','0','95','Disponível'],
+['Caminhão Pipa','Volkswagen','24.280','2024','0','650000','0','0','95','Disponível'],
+['Outros Equipamentos','Genérico','Empilhadeira','2024','0','280000','0','0','95','Disponível']
+];
 let equipments=loadEquipment(),editingEquipment=null;
+(function syncMaqonCatalog(){
+ const canon=seedEquipment.map(x=>[...x]);
+ canon.forEach(c=>{
+   const ix=equipments.findIndex(e=>String(e[0]).toLowerCase()===String(c[0]).toLowerCase()&&String(e[1]).toLowerCase()===String(c[1]).toLowerCase()&&String(e[2]).toLowerCase()===String(c[2]).toLowerCase());
+   if(ix>=0) equipments[ix]=c; else equipments.push(c);
+ });
+ persistEquipment();
+})();
 function loadEquipment(){try{const x=JSON.parse(localStorage.getItem(EQUIPMENT_KEY));return Array.isArray(x)?x:seedEquipment.map(x=>[...x])}catch(e){return seedEquipment.map(x=>[...x])}}
 function persistEquipment(){localStorage.setItem(EQUIPMENT_KEY,JSON.stringify(equipments))}
 function brl(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):''}
@@ -116,6 +135,11 @@ function proposalNumber(i){return 'PROP-'+String(i+1).padStart(4,'0')}
 function renderProposals(a=proposals){const body=document.querySelector('#proposalRows');if(!body)return;body.innerHTML=a.map(p=>{const i=proposals.indexOf(p);return `<tr><td>${proposalNumber(i)}</td><td>${esc(p.client)}</td><td>${esc(p.company)}</td><td>${esc(p.equipment)}</td><td>${esc(p.mode)}</td><td>${brl(p.value)}</td><td>${esc(p.validity||'—')}</td><td>${badge(p.status)}</td><td class="actions"><button data-pr-view="${i}" title="Visualizar">▤</button> <button data-pr-edit="${i}" title="Editar">✎</button> <button data-pr-delete="${i}" title="Excluir">▣</button></td></tr>`}).join('');document.querySelector('#proposalCount').textContent=proposals.length;document.querySelector('#proposalSentCount').textContent=proposals.filter(p=>['Enviada','Em negociação','Aprovada'].includes(p.status)).length}
 function proposalOptions(){const c=document.querySelector('#proposalClient'),e=document.querySelector('#proposalEquipment');if(!c||!e)return;c.innerHTML='<option value="">Selecione o cliente / lead</option>'+leads.map((x,i)=>`<option value="${i}">${esc(x[1])}${x[2]?' — '+esc(x[2]):''}</option>`).join('');e.innerHTML='<option value="">Selecione o equipamento</option>'+equipments.map((x,i)=>`<option value="${i}">${esc(equipmentName(x))}</option>`).join('')}
 const pd=document.querySelector('#proposalDialog'),pf=document.querySelector('#proposalForm');
+const proposalEquipmentSelect=document.querySelector('#proposalEquipment');
+if(proposalEquipmentSelect) proposalEquipmentSelect.addEventListener('change',()=>{
+ const eq=equipments[Number(proposalEquipmentSelect.value)];
+ if(eq){const v=document.querySelector('#proposalValue');if(v)v.value=eq[5]||'';}
+});
 function openProposal(i=null){editingProposal=i;proposalOptions();document.querySelector('#proposalDialogTitle').textContent=i===null?'Nova Proposta':'Editar Proposta';if(i===null){pf.reset();const d=new Date();d.setDate(d.getDate()+15);document.querySelector('#proposalValidity').value=d.toISOString().slice(0,10);document.querySelector('#proposalStatus').value='Rascunho'}else{const p=proposals[i],li=leads.findIndex(x=>x[1]===p.client&&x[2]===p.company),ei=equipments.findIndex(x=>equipmentName(x)===p.equipment);document.querySelector('#proposalClient').value=li>=0?li:'';document.querySelector('#proposalEquipment').value=ei>=0?ei:'';document.querySelector('#proposalMode').value=p.mode;document.querySelector('#proposalScope').value=p.scope||'';document.querySelector('#proposalValue').value=p.value;document.querySelector('#proposalValidity').value=p.validity||'';document.querySelector('#proposalTerms').value=p.terms||'';document.querySelector('#proposalStatus').value=p.status}pd.showModal()}
 function viewProposal(i){
  const p=proposals[i];if(!p)return;
@@ -123,17 +147,63 @@ function viewProposal(i){
  const category=(eq?.[0]||'Equipamento').trim(),maker=(eq?.[1]||'').trim(),model=(eq?.[2]||'').trim();
  const validity=p.validity?new Date(p.validity+'T12:00:00').toLocaleDateString('pt-BR'):'—';
  const issue=new Date().toLocaleDateString('pt-BR');
- const key=category.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
- let visual='outro';
- if(key.includes('retro'))visual='retroescavadeira'; else if(key.includes('motonivel'))visual='motoniveladora'; else if(key.includes('carregadeira'))visual='pa-carregadeira'; else if(key.includes('trator'))visual='trator-esteiras'; else if(key.includes('guindaste'))visual='guindaste'; else if(key.includes('munck'))visual='munck'; else if(key.includes('basculante'))visual='caminhao-basculante'; else if(key.includes('pipa'))visual='caminhao-pipa'; else if(key.includes('escav'))visual='escavadeira';
+ const norm=s=>String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+ const key=norm(category+' '+maker+' '+model);
+ let visual='outro',desc='Equipamento selecionado conforme especificações cadastradas na plataforma MAQON.';
+ let specs=[['ANO',eq?.[3]||'—'],['HORÍMETRO',(eq?.[4]||'—')+' h'],['DISPONIBILIDADE',(eq?.[8]||'—')+'%']];
+ let scopeLead=`Aquisição do ${maker} ${model} conforme especificação.`;
+ if(key.includes('pc210')||key.includes('escavadeira hidraulica')){
+   visual='escavadeira';desc='Escavadeira hidráulica para escavação, carregamento e terraplenagem com alta produtividade.';
+   specs=[['POTÊNCIA','165 hp'],['PESO OPERACIONAL','22.000 kg'],['CAÇAMBA','1,0 m³']];
+ }else if(key.includes('310l')||key.includes('retroescavadeira')){
+   visual='retroescavadeira';desc='Retroescavadeira versátil para escavação, carregamento e apoio em obras.';
+   specs=[['POTÊNCIA','100 hp'],['PESO OPERACIONAL','8.200 kg'],['CAÇAMBA','1,0 m³']];
+ }else if(key.includes('845b')||key.includes('motoniveladora')){
+   visual='motoniveladora';desc='Motoniveladora para nivelamento, acabamento e conformação de vias e terrenos.';
+   specs=[['POTÊNCIA','205 hp'],['PESO OPERACIONAL','17.500 kg'],['LÂMINA','4,27 m']];
+ }else if(key.includes('966l')||key.includes('pa carregadeira')){
+   visual='pa-carregadeira';desc='Pá carregadeira para carregamento e movimentação de materiais com alta produtividade.';
+   specs=[['POTÊNCIA','308 hp'],['PESO OPERACIONAL','24.000 kg'],['CAÇAMBA','4,2 m³']];
+ }else if(key.includes('d61ex')||key.includes('trator de esteiras')){
+   visual='trator-esteiras';desc='Trator de esteiras para terraplenagem, corte, empurramento e preparação de terrenos.';
+   specs=[['POTÊNCIA','168 hp'],['PESO OPERACIONAL','18.700 kg'],['LÂMINA','3,81 m']];
+ }else if(key.includes('stc250t5')||key.includes('guindaste')){
+   visual='guindaste';desc='Guindaste rodoviário para içamento, movimentação e posicionamento seguro de cargas.';
+   specs=[['CAPACIDADE DE CARGA','250 t'],['POTÊNCIA','320 hp'],['ALTURA DA LANÇA','47 m']];
+ }else if(key.includes('munck')){
+   visual='munck';desc='Conjunto para transporte, içamento e movimentação de cargas.';
+   specs=[['CAPACIDADE','12 t'],['ALCANCE','13,5 m'],['GIRO','400°']];
+ }else if(key.includes('basculante')){
+   visual='caminhao-basculante';desc='Caminhão basculante para transporte e descarga eficiente de materiais.';
+   specs=[['POTÊNCIA','286 cv'],['CAPACIDADE','16 m³'],['TRAÇÃO','6x4']];
+ }else if(key.includes('pipa')){
+   visual='caminhao-pipa';desc='Caminhão pipa para abastecimento, umectação de vias e apoio operacional.';
+   specs=[['POTÊNCIA','280 cv'],['CAPACIDADE','15.000 L'],['TRAÇÃO','6x2']];
+ }
  const photo=`maqon-${visual}.jpg`;
- const isSany=/sany/i.test(maker)&&/stc250t5/i.test(model);
+ const scope=[
+   p.scope||scopeLead,
+   'Suporte na análise técnica e comparativa com outras opções de mercado.',
+   'Orientação sobre manutenção preventiva e custo operacional.',
+   'Acompanhamento no processo de aquisição e entrega do equipamento.',
+   'Treinamento operacional básico (conforme fabricante).'
+ ];
  const w=window.open('','_blank');if(!w)return alert('Autorize pop-ups para visualizar a proposta.');
  const html=`<!doctype html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(num)} - MAQON</title><style>
- *{box-sizing:border-box}html,body{margin:0;background:#061015;font-family:Arial,Helvetica,sans-serif}.toolbar{height:56px;background:#071218;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20;border-bottom:1px solid #c9a600}.toolbar button{border:0;border-radius:5px;padding:10px 15px;font-weight:800;cursor:pointer;margin-left:8px}.gold{background:#f4c400}.dark{background:#263740;color:#fff}.stage{padding:14px;display:flex;justify-content:center}.sheet{position:relative;width:min(1024px,100%);aspect-ratio:2/3;background:#061015 url('maqon-proposta-master.png') center top/100% 100% no-repeat;box-shadow:0 12px 45px #000;overflow:hidden}.dyn{position:absolute;color:#fff;z-index:3}.mask{position:absolute;background:#07161c;z-index:2}.photo{position:absolute;z-index:1;background:url('${photo}') center/cover no-repeat;border-radius:12px}.client{left:10%;top:25.7%;font-size:1.65vw;font-weight:700}.company{left:59.8%;top:25.7%;font-size:1.65vw;font-weight:700}.mode{left:10%;top:30.8%;font-size:1.65vw;font-weight:700}.validity{left:43.2%;top:30.8%;font-size:1.65vw;font-weight:700}.issue{left:72.8%;top:30.8%;font-size:1.65vw;font-weight:700}.eqtitle{left:51.4%;top:39.4%;font-size:2.1vw;font-weight:800}.value{left:13.4%;top:60.8%;font-size:3.2vw;color:#ffd400;font-weight:900}.terms{left:59.5%;top:59.8%;font-size:1.5vw;font-weight:700}.proposalnum{right:4.3%;top:5.7%;font-size:1.25vw;font-weight:700}.equipPhoto{left:3.2%;top:36.9%;width:45.1%;height:17.1%}.heroPhoto{left:42.7%;top:0;width:39.4%;height:21.7%;border-radius:0}.sanyNote{display:${isSany?'none':'block'}}@media(min-width:1024px){.client,.company,.mode,.validity,.issue{font-size:17px}.eqtitle{font-size:22px}.value{font-size:33px}.terms{font-size:15px}.proposalnum{font-size:13px}}@media print{.toolbar{display:none}.stage{padding:0}.sheet{width:100vw;box-shadow:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{size:A4 portrait;margin:0}}
+ *{box-sizing:border-box}html,body{margin:0;background:#061015;font-family:Arial,Helvetica,sans-serif}.toolbar{height:56px;background:#071218;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 20px;position:sticky;top:0;z-index:20;border-bottom:1px solid #c9a600}.toolbar button{border:0;border-radius:5px;padding:10px 15px;font-weight:800;cursor:pointer;margin-left:8px}.gold{background:#f4c400}.dark{background:#263740;color:#fff}.stage{padding:14px;display:flex;justify-content:center}.sheet{position:relative;width:min(1024px,100%);aspect-ratio:2/3;background:#061015 url('maqon-proposta-master.png') center top/100% 100% no-repeat;box-shadow:0 12px 45px #000;overflow:hidden}.mask{position:absolute;background:#07161c;z-index:5}.txt{position:absolute;z-index:7;color:#fff;font-weight:700;line-height:1.15}.photo{position:absolute;z-index:6;background:url('${photo}') center/cover no-repeat}.heroPhoto{left:42.8%;top:0;width:39.1%;height:21.55%}.heroLabel{left:43.5%;top:1.2%;width:37%;padding:5px 8px;background:rgba(4,12,16,.72);font-size:2.15vw;color:#ffd400}.heroLabel small{display:block;color:#fff;font-size:1.45vw;margin-top:2px}.clientMask{left:7.5%;top:24.05%;width:43%;height:4.4%}.companyMask{left:52%;top:24.05%;width:44%;height:4.4%}.metaMask{left:7.5%;top:29.0%;width:88.5%;height:4.5%}.client{left:10%;top:25.35%;font-size:1.65vw}.company{left:59.8%;top:25.35%;font-size:1.65vw}.mode{left:10%;top:30.45%;font-size:1.6vw}.validity{left:43.2%;top:30.45%;font-size:1.6vw}.issue{left:72.8%;top:30.45%;font-size:1.6vw}.equipPhoto{left:3.25%;top:36.9%;width:45.2%;height:17.0%;border-radius:11px}.infoMask{left:50.0%;top:36.8%;width:46.3%;height:17.4%}.eqtitle{left:52.1%;top:38.4%;width:41.5%;font-size:1.85vw;color:#fff}.desc{left:52.1%;top:42.0%;width:41%;font-size:1.13vw;font-weight:400;line-height:1.35}.specs{position:absolute;z-index:7;left:52.1%;top:47.1%;width:41.2%;display:grid;grid-template-columns:repeat(3,1fr);gap:10px;color:#fff}.spec{border-right:1px solid #5a7078;padding-right:6px}.spec:last-child{border:0}.spec small{display:block;font-size:.85vw;color:#c3d0d5;min-height:2.1em}.spec b{display:block;margin-top:6px;font-size:1.45vw}.priceMask{left:9.2%;top:56.9%;width:38.8%;height:10.6%}.value{left:13.4%;top:60.0%;font-size:3.0vw;color:#ffd400;font-weight:900}.priceNote{left:13.4%;top:64.3%;font-size:1.1vw;font-weight:400}.termsMask{left:50.4%;top:56.9%;width:45.2%;height:10.7%}.term{left:59.5%;font-size:1.25vw}.term1{top:59.25%}.term2{top:62.25%}.term3{top:65.2%}.scopeMask{left:7.6%;top:70.6%;width:88.2%;height:11.6%}.scope{left:10.0%;top:72.25%;width:78%;font-size:1.03vw;font-weight:400;line-height:1.55}.scope div:before{content:'✓';color:#ffd400;font-weight:900;margin-right:8px}.numMask{right:3.2%;top:4.7%;width:16%;height:2.4%}.proposalnum{right:4.3%;top:5.35%;font-size:1.2vw}
+ @media(min-width:1024px){.heroLabel{font-size:22px}.heroLabel small{font-size:15px}.client,.company{font-size:17px}.mode,.validity,.issue{font-size:16px}.eqtitle{font-size:19px}.desc{font-size:12px}.spec small{font-size:9px}.spec b{font-size:15px}.value{font-size:31px}.priceNote{font-size:11px}.term{font-size:13px}.scope{font-size:10.5px}.proposalnum{font-size:12px}}
+ @media print{.toolbar{display:none}.stage{padding:0}.sheet{width:100vw;box-shadow:none}*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}@page{size:A4 portrait;margin:0}}
  </style></head><body><header class="toolbar"><b>Proposta Comercial — ${esc(num)}</b><div><button class="dark" onclick="window.close()">Fechar</button><button class="gold" onclick="window.print()">Imprimir / Salvar PDF</button></div></header><main class="stage"><article class="sheet">
- ${isSany?'':`<div class="photo heroPhoto"></div><div class="photo equipPhoto"></div>`}
- <!-- No SANY aprovado, a arte mestre é exibida sem nenhuma sobreposição. -->
+ <div class="photo heroPhoto"></div><div class="txt heroLabel">${esc(maker)} ${esc(model)}<small>${esc(category)}</small></div>
+ <div class="mask clientMask"></div><div class="mask companyMask"></div><div class="mask metaMask"></div>
+ <div class="txt client">${esc(p.client)}</div><div class="txt company">${esc(p.company||'—')}</div><div class="txt mode">${esc(p.mode)}</div><div class="txt validity">${esc(validity)}</div><div class="txt issue">${esc(issue)}</div>
+ <div class="photo equipPhoto"></div><div class="mask infoMask"></div>
+ <div class="txt eqtitle">${esc(maker)} ${esc(model)} — ${esc(category)}</div><div class="txt desc">${esc(desc)}</div>
+ <div class="specs">${specs.map(s=>`<div class="spec"><small>${esc(s[0])}</small><b>${esc(s[1])}</b></div>`).join('')}</div>
+ <div class="mask priceMask"></div><div class="txt value">${brl(p.value||eq?.[5])}</div><div class="txt priceNote">Investimento conforme proposta comercial<br><span style="opacity:.85">(Valores sujeitos a alteração)</span></div>
+ <div class="mask termsMask"></div><div class="txt term term1">${esc(p.terms||'A combinar / financiamento')}</div><div class="txt term term2">A combinar</div><div class="txt term term3">Conforme fabricante</div>
+ <div class="mask scopeMask"></div><div class="txt scope">${scope.map(x=>`<div>${esc(x)}</div>`).join('')}</div>
+ <div class="mask numMask"></div><div class="txt proposalnum">Nº: ${esc(num)}</div>
  </article></main></body></html>`;
  w.document.open();w.document.write(html);w.document.close();
 }
