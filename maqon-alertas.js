@@ -22,7 +22,7 @@ function autoTasks(db,tasks){
    };
    add('contato:'+l.id+':'+(n.proximoContato||''),'Próximo contato comercial',n.proximoContato,'Alta','Negociação');
    add('prazo:'+l.id+':'+(p.prazo||''),'Prazo do projeto',p.prazo,p.prioridade||'Normal','Pós-venda');
-   add('entrega:'+l.id+':'+(p.dataEntrega||''),'Entrega prevista',p.dataEntrega,'Alta','Pós-venda');
+   add('entrega:'+l.id+':'+(p.entrega||p.dataEntrega||''),'Entrega prevista',p.entrega||p.dataEntrega,'Alta','Pós-venda');
  });
  write(TASKS,tasks); return tasks;
 }
