@@ -7,7 +7,7 @@ const seedLeads=[
 ['28/09/2026','Fernanda Costa','Costa Logística','(31) 98987-6543','Retroescavadeira','Cliente','Fechado','Site']
 ];
 let leads=loadLeads(); let editingIndex=null;
-function loadLeads(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));return Array.isArray(x)?x:seedLeads.map(x=>[...x])}catch(e){return seedLeads.map(x=>[...x])}}
+function loadLeads(){try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));return Array.isArray(x)?x:[]}catch(e){return []}}
 function persist(){localStorage.setItem(STORAGE_KEY,JSON.stringify(leads))}
 function esc(v=''){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]))}
 function badge(v){return `<span class="badge" data-status="${esc(v)}">${esc(v)}</span>`}
@@ -33,10 +33,17 @@ function updateKPIs(){
  }
  const total=leads.length,service=leads.filter(x=>x[5]==='Em Atendimento').length,proposal=leads.filter(x=>x[5]==='Proposta Enviada').length,negotiation=leads.filter(x=>x[5]==='Negociação').length,clients=leads.filter(x=>x[5]==='Cliente').length; const set=(id,v)=>{const e=document.querySelector(id);if(e)e.textContent=v};set('#kpiTotal',total);set('#kpiNew',leads.filter(x=>x[5]==='Novo Lead').length);set('#kpiService',service);set('#kpiProposal',proposal);set('#kpiClient',clients);set('#kpiConversion',total?`${(clients/total*100).toFixed(1).replace('.',',')}%`:'0,0%'); const donut=document.querySelector('.donut b');if(donut)donut.textContent=total; const funnelValues=[total,service,proposal,negotiation,clients];document.querySelectorAll('.funnel>div').forEach((row,i)=>{const value=funnelValues[i]??0;const b=row.querySelector('b'),small=row.querySelector('small');if(b)b.textContent=value;if(small)small.textContent=(i===0?(total?100:0):(total?Math.round(value/total*100):0))+'%'})
 }
-function render(){renderRecent();renderAll();updateKPIs()}
+function render(){renderRecent();renderAll();updateKPIs();setTimeout(()=>{try{renderLiveSummary()}catch(e){}},0)}
+function renderLiveSummary(){
+ const crm=loadCRMLeads();
+ const source=crm.length?crm.map(l=>l.origem||'Outro'):leads.map(l=>l[7]||'Outro');
+ const total=source.length, counts={};source.forEach(o=>{const k=o||'Outro';counts[k]=(counts[k]||0)+1});
+ const legend=document.querySelector('#originLegend');if(legend){legend.innerHTML=total?Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<p>${esc(k)} <b>${Math.round(v/total*100)}%</b></p>`).join(''):'<p>Sem leads cadastrados.</p>'}
+ const pipe=document.querySelector('#financePipeline');if(pipe){const sum=(typeof proposals!=='undefined'?proposals:[]).reduce((a,p)=>a+(Number(p.value)||0),0);pipe.textContent=brl(sum)||'R$ 0,00'}
+}
+
 render();
-const heights=[38,54,48,66,42,72,58,47,78,52,69,43,62,86,55,49,74,44,67,59,82,51,70,91];
-heights.forEach(h=>{const b=document.createElement('i');b.style.height=h+'%';document.querySelector('#bars').appendChild(b)});
+
 function go(id){document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));document.querySelector('#'+id).classList.add('active');document.querySelectorAll('.nav').forEach(n=>n.classList.toggle('active',n.dataset.view===id))}
 document.querySelectorAll('.nav').forEach(n=>n.onclick=()=>{if(n.dataset.href){location.href=n.dataset.href;return}go(n.dataset.view)});document.querySelectorAll('[data-go]').forEach(n=>n.onclick=()=>go(n.dataset.go));
 const d=document.querySelector('#leadDialog'),form=document.querySelector('#leadForm');
@@ -64,7 +71,12 @@ document.querySelector('#search').oninput=e=>{const q=e.target.value.toLowerCase
 const EQUIPMENT_KEY='maqon_equipamentos_v1';
 const seedEquipment=[['Escavadeira','Caterpillar','320','2024','1250','850000','18.5','42','94','Ativo'],['Pá Carregadeira','Volvo','L90H','2023','2100','780000','15.8','38','92','Ativo'],['Guindaste','SANY','STC250T5','2024','980','1250000','22','55','96','Disponível']];
 let equipments=loadEquipment(),editingEquipment=null;
-function loadEquipment(){try{const x=JSON.parse(localStorage.getItem(EQUIPMENT_KEY));return Array.isArray(x)?x:seedEquipment.map(x=>[...x])}catch(e){return seedEquipment.map(x=>[...x])}}
+function removeLegacyDemoData(){
+ try{const x=JSON.parse(localStorage.getItem(STORAGE_KEY));if(Array.isArray(x)&&x.length===5&&['Marcos Oliveira','Ana Paula Santos','Carlos Mendes','João Ribeiro','Fernanda Costa'].every((n,i)=>x[i]&&x[i][1]===n)){localStorage.removeItem(STORAGE_KEY);leads=[]}}catch(e){}
+ try{const x=JSON.parse(localStorage.getItem(EQUIPMENT_KEY));if(Array.isArray(x)&&x.length===3&&['320','L90H','STC250T5'].every((n,i)=>x[i]&&x[i][2]===n)){localStorage.removeItem(EQUIPMENT_KEY);equipments=[]}}catch(e){}
+}
+
+function loadEquipment(){try{const x=JSON.parse(localStorage.getItem(EQUIPMENT_KEY));return Array.isArray(x)?x:[]}catch(e){return []}}
 function persistEquipment(){localStorage.setItem(EQUIPMENT_KEY,JSON.stringify(equipments))}
 function brl(v){const n=Number(v);return Number.isFinite(n)?n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}):''}
 function renderEquipment(a=equipments){const body=document.querySelector('#equipmentRows');if(!body)return;body.innerHTML=a.map(x=>{const i=equipments.indexOf(x);return `<tr><td>${esc(x[0])}</td><td>${esc(x[1])}</td><td>${esc(x[2])}</td><td>${esc(x[3])}</td><td>${esc(x[4])} h</td><td>${brl(x[5])}</td><td>${esc(x[6])} L/h</td><td>${brl(x[7])}/h</td><td>${esc(x[8])}%</td><td>${esc(x[9])}</td><td class="actions"><button type="button" data-eq-edit="${i}" title="Editar">✎</button> <button type="button" data-eq-delete="${i}" title="Excluir">▣</button></td></tr>`}).join('')}
@@ -72,7 +84,7 @@ const eqd=document.querySelector('#equipmentDialog'),eqf=document.querySelector(
 function openEquipment(i=null){editingEquipment=i;document.querySelector('#equipmentDialogTitle').textContent=i===null?'Novo Equipamento':'Editar Equipamento';if(i===null)eqf.reset();else{const x=equipments[i];['eqCategory','eqMaker','eqModel','eqYear','eqHours','eqValue','eqConsumption','eqMaintenance','eqAvailability','eqStatus'].forEach((id,n)=>document.querySelector('#'+id).value=x[n])}eqd.showModal()}
 document.querySelector('#newEquipment').onclick=()=>openEquipment();
 document.querySelector('#cancelEquipment').onclick=()=>eqd.close();
-eqf.addEventListener('submit',e=>{e.preventDefault();const ids=['eqCategory','eqMaker','eqModel','eqYear','eqHours','eqValue','eqConsumption','eqMaintenance','eqAvailability','eqStatus'];const row=ids.map(id=>document.querySelector('#'+id).value.trim());if(!row[1]||!row[2])return;if(editingEquipment===null)equipments.unshift(row);else equipments[editingEquipment]=row;persistEquipment();renderEquipment();populateComparators();analysisOptions();eqd.close();eqf.reset()});
+eqf.addEventListener('submit',e=>{e.preventDefault();const ids=['eqCategory','eqMaker','eqModel','eqYear','eqHours','eqValue','eqConsumption','eqMaintenance','eqAvailability','eqStatus'];const row=ids.map(id=>document.querySelector('#'+id).value.trim());if(!row[1]||!row[2])return;if(editingEquipment===null)equipments.unshift(row);else equipments[editingEquipment]=row;persistEquipment();removeLegacyDemoData();render();renderEquipment();populateComparators();analysisOptions();eqd.close();eqf.reset()});
 document.addEventListener('click',e=>{const ed=e.target.closest('[data-eq-edit]'),del=e.target.closest('[data-eq-delete]');if(ed)openEquipment(Number(ed.dataset.eqEdit));if(del){const i=Number(del.dataset.eqDelete);if(confirm(`Excluir o equipamento ${equipments[i][1]} ${equipments[i][2]}?`)){equipments.splice(i,1);persistEquipment();renderEquipment();populateComparators();analysisOptions()}}});
 document.querySelector('#equipmentSearch').oninput=e=>{const q=e.target.value.toLowerCase();renderEquipment(equipments.filter(x=>x.join(' ').toLowerCase().includes(q)))};
 renderEquipment();
@@ -143,7 +155,7 @@ analysisOptions();
 
 // MAQON - Propostas Comerciais
 const PROPOSAL_KEY='maqon_propostas_v1';
-let proposals=loadProposals(),editingProposal=null;
+let proposals=loadProposals(),editingProposal=null;setTimeout(()=>{try{renderLiveSummary()}catch(e){}},0);
 function loadProposals(){try{const x=JSON.parse(localStorage.getItem(PROPOSAL_KEY));return Array.isArray(x)?x:[]}catch(e){return []}}
 function persistProposals(){localStorage.setItem(PROPOSAL_KEY,JSON.stringify(proposals))}
 function proposalNumber(i){return 'PROP-'+String(i+1).padStart(4,'0')}
